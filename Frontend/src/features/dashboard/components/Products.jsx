@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 
 const Products = () => {
   const navigate = useNavigate();
-  const { products, setModel } = useContext(dashboardDataContext);
+  const { products, setModel, setPartColors } = useContext(dashboardDataContext);
   const ProductData = [
     {
       folderName: "AMERICAN FOOTBALL",
@@ -34,14 +34,14 @@ const Products = () => {
     {
       folderName: "SOCCER",
       images: [
-        "/Product Images/SOCCER/SOCCER Jerseys.png",
-        "/Product Images/SOCCER/SOCCER Shorts.png",
+        "/Product Images/SOCCER/JERSEYS.png",
+        "/Product Images/SOCCER/SHORTS.png",
       ],
     },
     {
       folderName: "LACROSSE",
       images: [
-        "/Product Images/LACROSSE/LACROSSE Jersey.png",
+        "/Product Images/LACROSSE/JERSEY.png",
         "/Product Images/LACROSSE/SHORTS.png",
         "/Product Images/LACROSSE/WOMEN SHORTS.png",
         "/Product Images/LACROSSE/TANKTOP PINIES.png",
@@ -51,8 +51,8 @@ const Products = () => {
     {
       folderName: "SOFTBALL",
       images: [
-        "/Product Images/SOFTBALL/SOFTBALL Crew Neck Jerseys.png",
-        "/Product Images/SOFTBALL/SOFTBALL Shorts.png",
+        "/Product Images/SOFTBALL/CREW NECK JERSEYS.png",
+        "/Product Images/SOFTBALL/SHORTS.png",
       ],
     },
     {
@@ -68,24 +68,16 @@ const Products = () => {
   ];
 
   return (
-    <div className="h-full w-3/4 bg-[#f8f9fa] flex flex-col relative overflow-hidden">
-      {/* Subtle background decorative blob */}
-      <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 rounded-full bg-blue-50 opacity-50 blur-3xl pointer-events-none"></div>
-
-      {/* Header */}
-      <div className="px-12 pt-12 pb-6 z-10">
-        <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
+    <div className="h-full w-3/4 bg-zinc-100 tech-grid flex flex-col relative overflow-hidden font-mono">
+      {/* File Browser Header */}
+      <div className="px-10 pt-10 pb-4 border-b border-zinc-200 bg-zinc-50 flex items-center justify-between">
+        <h1 className="text-2xl font-black text-zinc-800 tracking-tight uppercase">
           {products}
         </h1>
-        <p className="text-gray-500 mt-2 text-sm font-medium">
-          Explore our premium collection of {products.toLowerCase()}.
-        </p>
       </div>
 
-      {/* Content Area */}
-      <div className="flex-1 px-12 pb-12 z-10 flex flex-col overflow-y-auto">
-        {" "}
-        {/* Added overflow-y-auto to allow scrolling */}
+      {/* Asset Grid Panel */}
+      <div className="flex-1 px-10 py-8 overflow-y-auto flex flex-col custom-scrollbar">
         {(() => {
           // 1. Current active category data
           const activeCategory = ProductData.find(
@@ -95,59 +87,63 @@ const Products = () => {
           // 2. If match not found show empty/not found state
           if (!activeCategory) {
             return (
-              <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-gray-300 rounded-2xl bg-white shadow-sm p-8">
-                <p className="text-gray-400 font-medium text-lg">
-                  No product images found for "{products}"
+              <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-zinc-300 bg-zinc-50 p-8 rounded">
+                <p className="text-zinc-400 font-medium text-xs">
+                  [ERR_NO_ASSETS] No product items cataloged for category: "{products}"
                 </p>
               </div>
             );
           }
 
-          // 3. match = image cards
+          // 3. Render asset cards
           return (
-            <div className="flex-1 border border-dashed border-gray-300 rounded-2xl bg-white shadow-sm p-8">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 w-full">
-                {activeCategory.images.map((imagePath, index) => {
-                  // Image ke path se clean naam nikalne ke liye logic
-                  const fileName = imagePath
-                    .split("/")
-                    .pop()
-                    .replace(/\.[^/.]+$/, "");
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full">
+              {activeCategory.images.map((imagePath, index) => {
+                const fileName = imagePath
+                  .split("/")
+                  .pop()
+                  .replace(/\.[^/.]+$/, "");
 
-                  return (
-                    <div
-                      onClick={() => {
-                              const requireName = fileName.toLowerCase().replace(/\s+/g, "");
-                              console.log(requireName);
-                        setModel(requireName);
-                        navigate("/builder");
-                      }}
-                      key={index}
-                      className="bg-[#f8f9fa] rounded-xl border border-gray-100 overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col"
-                    >
-                      {/* Image Box */}
-                      <div className="h-48 bg-white flex items-center justify-center p-4 border-b border-gray-100">
-                        <img
-                          src={imagePath}
-                          alt={fileName}
-                          className="max-w-full max-h-full object-contain"
-                          loading="lazy"
-                          onError={(e) => {
-                            e.target.src = "https://placehold.co";
-                          }}
-                        />
-                      </div>
-
-                      {/* Text Details */}
-                      <div className="p-3 bg-white flex-1 flex flex-col justify-center">
-                        <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wide truncate">
-                          {fileName}
-                        </h3>
-                      </div>
+                return (
+                  <div
+                    onClick={() => {
+                      const glbPath = `/PRODUCTS/${products}/${fileName}.glb`;
+                      setModel(glbPath);
+                      setPartColors({}); // Reset custom colors for the new model
+                      navigate("/builder");
+                    }}
+                    key={index}
+                    className="bg-zinc-50 border border-zinc-200 rounded-sm overflow-hidden flex flex-col cursor-pointer hover:border-zinc-400 hover:shadow-sm active:scale-99 transition-all select-none group"
+                  >
+                    {/* Visual Asset Thumbnail */}
+                    <div className="h-40 bg-white flex items-center justify-center p-4 border-b border-zinc-200 relative">
+                      <span className="absolute top-2 left-2 text-[9px] font-mono text-zinc-400 bg-zinc-100 border border-zinc-200 px-1.5 rounded">
+                        .GLB
+                      </span>
+                      <img
+                        src={imagePath}
+                        alt={fileName}
+                        className="max-w-full max-h-full object-contain filter drop-shadow-xs transition-transform duration-200 group-hover:scale-105"
+                        loading="lazy"
+                        onError={(e) => {
+                          e.target.src = "https://placehold.co";
+                        }}
+                      />
                     </div>
-                  );
-                })}
-              </div>
+
+                    {/* Technical metadata */}
+                    <div className="p-3 flex-1 flex flex-col justify-between gap-3">
+                      <h3 className="text-[11px] font-bold text-zinc-800 uppercase tracking-tight truncate" title={fileName}>
+                        {fileName}
+                      </h3>
+                      {/* Action Button */}
+                      <button className="w-full py-1.5 border border-zinc-200 group-hover:border-zinc-400 group-hover:bg-zinc-150 transition-colors text-[9px] font-bold text-zinc-600 text-center uppercase cursor-pointer rounded-xs">
+                        Load in Viewport
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           );
         })()}
