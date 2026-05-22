@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect } from "react";
+import React, { createContext, useState } from "react";
 
 export const builderContext = createContext();
 
@@ -22,31 +22,8 @@ const BuilderContextProvider = ({ children }) => {
   const [targetMesh, setTargetMesh] = useState("");
 
   // All uploaded / added items
-  const [textList, setTextList] = useState(() => {
-    try {
-      const stored = localStorage.getItem("builder_text_list");
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  const [logoList, setLogoList] = useState(() => {
-    try {
-      const stored = localStorage.getItem("builder_logo_list");
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  useEffect(() => {
-    localStorage.setItem("builder_text_list", JSON.stringify(textList));
-  }, [textList]);
-
-  useEffect(() => {
-    localStorage.setItem("builder_logo_list", JSON.stringify(logoList));
-  }, [logoList]);
+  const [textList, setTextList] = useState([]);
+  const [logoList, setLogoList] = useState([]);
 
   // Selection & drag
   const [selectedId, setSelectedId] = useState(null);
@@ -58,6 +35,9 @@ const BuilderContextProvider = ({ children }) => {
 
   // Loaded GLTF scene (for placement helpers in sidebar)
   const [modelScene, setModelScene] = useState(null);
+
+  // Global loading state for builder actions (e.g. saving design)
+  const [loading, setLoading] = useState(false);
 
   return (
     <builderContext.Provider
@@ -100,6 +80,8 @@ const BuilderContextProvider = ({ children }) => {
         setMeshNames,
         modelScene,
         setModelScene,
+        loading,
+        setLoading,
       }}
     >
       {children}

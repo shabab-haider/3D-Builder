@@ -4,12 +4,15 @@ import ProductCanvas from "./canvas/ProductCanvas";
 import PartsList from "./components/PartsList";
 import ColorPalette from "./components/ColorPalette";
 import LogoTextPanel from "./components/LogoTextPanel";
-import BuilderContextProvider from "./state/builder.context";
+import BuilderContextProvider, { builderContext } from "./state/builder.context";
 import { dashboardDataContext } from "../dashboard/state/dashboard.context";
+import { useBuilder } from "./hooks/useBuilder";
 
 const BuilderContent = () => {
   const navigate = useNavigate();
   const { model, products, partColors, setPartColors } = useContext(dashboardDataContext);
+  const { textList, logoList } = useContext(builderContext);
+  const { saveDesign, loading: isSaving } = useBuilder();
 
   const [parts, setParts] = useState([]);
   const [selectedPart, setSelectedPart] = useState(null);
@@ -102,11 +105,6 @@ const BuilderContent = () => {
               selectedPart={selectedPart}
               onPartSelect={setSelectedPart}
             />
-          </div>
-
-          <div className="p-3 border-t border-zinc-200 bg-zinc-100/50 flex flex-col gap-1 text-[9px] text-zinc-400">
-            <div>MESH_COUNT: <span className="text-zinc-600 font-bold">{parts.length}</span></div>
-            <div>STATUS: <span className="text-green-600 font-bold">READY</span></div>
           </div>
         </div>
 
@@ -212,6 +210,20 @@ const BuilderContent = () => {
             <span className="text-[9px] font-bold tracking-widest text-zinc-400 uppercase mb-0.5">
               Output Controls
             </span>
+
+            <button
+              onClick={() => saveDesign({
+                productCategory: products,
+                modelPath: model,
+                partColors: partColors,
+                textList: textList,
+                logoList: logoList,
+              })}
+              disabled={parts.length === 0 || isSaving}
+              className="w-full flex items-center justify-center gap-1.5 py-2 border border-zinc-200 hover:border-zinc-300 bg-white text-[10px] font-bold text-zinc-600 hover:text-zinc-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-xs rounded-xs font-mono"
+            >
+              {isSaving ? "SAVING DESIGN..." : "SAVE DESIGN"}
+            </button>
 
             <button
               onClick={handleResetColors}

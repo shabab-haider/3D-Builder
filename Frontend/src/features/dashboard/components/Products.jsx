@@ -1,10 +1,32 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import { dashboardDataContext } from "../state/dashboard.context";
 import { useNavigate } from "react-router-dom";
+import { uploadToCloudinary } from "../../builder/utils/cloudinaryUpload";
 
 const Products = () => {
   const navigate = useNavigate();
-  const { products, setModel, setPartColors } = useContext(dashboardDataContext);
+  const { products, setProducts, setModel, setPartColors } = useContext(dashboardDataContext);
+  const [uploading, setUploading] = useState(false);
+
+  const handleGlbUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+
+    try {
+      const { url } = await uploadToCloudinary(file);
+      setProducts("CUSTOM_DESIGN");
+      setModel(url);
+      setPartColors({});
+      navigate("/builder");
+    } catch (err) {
+      console.error("GLB upload failed:", err);
+      alert("Failed to upload GLB model: " + err.message);
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  };
   const ProductData = [
     {
       folderName: "AMERICAN FOOTBALL",
@@ -74,6 +96,21 @@ const Products = () => {
         <h1 className="text-2xl font-black text-zinc-800 tracking-tight uppercase">
           {products}
         </h1>
+        <div className="flex items-center gap-3">
+          <label className={`flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-white text-[10px] font-bold uppercase cursor-pointer rounded-xs transition-colors ${uploading ? "opacity-50 pointer-events-none" : ""}`}>
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+            <span>{uploading ? "Uploading GLB..." : "Upload GLB"}</span>
+            <input
+              type="file"
+              accept=".glb"
+              className="hidden"
+              onChange={handleGlbUpload}
+              disabled={uploading}
+            />
+          </label>
+        </div>
       </div>
 
       {/* Asset Grid Panel */}
@@ -87,10 +124,22 @@ const Products = () => {
           // 2. If match not found show empty/not found state
           if (!activeCategory) {
             return (
-              <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-zinc-300 bg-zinc-50 p-8 rounded">
-                <p className="text-zinc-400 font-medium text-xs">
-                  [ERR_NO_ASSETS] No product items cataloged for category: "{products}"
-                </p>
+              <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-zinc-300 bg-zinc-50 p-8 rounded text-center max-w-lg mx-auto my-auto">
+                {products === "CUSTOM_DESIGN" ? (
+                  <>
+                    <p className="text-zinc-500 font-bold text-xs uppercase mb-1">
+                      [SYS] CUSTOM_DESIGN_ACTIVE
+                    </p>
+                    <p className="text-zinc-400 text-[10px] leading-relaxed">
+                      A custom 3D model is currently loaded in the builder workspace. 
+                      Select a standard collection from the Collections Directory on the left to start a new design or browse catalog assets.
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-zinc-400 font-medium text-xs">
+                    [ERR_NO_ASSETS] No product items cataloged for category: "{products}"
+                  </p>
+                )}
               </div>
             );
           }
