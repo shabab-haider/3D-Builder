@@ -16,8 +16,12 @@ const LogoTextPanel = () => {
     setTextColor,
     setTextPosition,
     setTextSize,
+    textRotation,
+    setTextRotation,
     setLogoUrl,
     setLogoSize,
+    logoRotation,
+    setLogoRotation,
     setLogoPosition,
     setTargetMesh,
     textList,
@@ -73,6 +77,7 @@ const LogoTextPanel = () => {
     setTextPosition(item.position);
     setTextSize(item.size);
     setTargetMesh(item.mesh);
+    setTextRotation(item.rotationAngle || 0);
   };
 
   const selectLogoItem = (item) => {
@@ -82,6 +87,7 @@ const LogoTextPanel = () => {
     setLogoPosition(item.position);
     setLogoSize(item.size);
     setTargetMesh(item.mesh);
+    setLogoRotation(item.rotationAngle || 0);
   };
 
   const handleAddText = () => {
@@ -106,6 +112,7 @@ const LogoTextPanel = () => {
       quaternion,
       size,
       mesh: meshName,
+      rotationAngle: 0,
     };
 
     setTextList((prev) => [...prev, item]);
@@ -113,6 +120,7 @@ const LogoTextPanel = () => {
     setTextColor(color);
     setTextPosition(position);
     setTextSize(size);
+    setTextRotation(0);
     setTargetMesh(meshName);
     setSelectedId(id);
     setSelectedType("text");
@@ -142,12 +150,14 @@ const LogoTextPanel = () => {
         quaternion,
         size,
         mesh: meshName,
+        rotationAngle: 0,
       };
 
       setLogoList((prev) => [...prev, item]);
       setLogoUrl(url);
       setLogoPosition(position);
       setLogoSize(size);
+      setLogoRotation(0);
       setTargetMesh(meshName);
       setSelectedId(id);
       setSelectedType("logo");
@@ -166,9 +176,11 @@ const LogoTextPanel = () => {
     setTextColor("#111827");
     setTextPosition([0, 0, 0.02]);
     setTextSize(0.35);
+    setTextRotation(0);
     setLogoUrl("");
     setLogoPosition([0, 0, 0.02]);
     setLogoSize(0.4);
+    setLogoRotation(0);
     setTargetMesh("");
     setEditTextInput("");
   };
@@ -224,7 +236,7 @@ const LogoTextPanel = () => {
     if (!selectedId) return;
 
     if (selectedType === "text") {
-      const newSize = Math.max(0.1, Math.min(1.5, +(textSize + delta).toFixed(2)));
+      const newSize = Math.max(0.01, Math.min(3.0, +(textSize + delta).toFixed(2)));
       setTextSize(newSize);
       setTextList((prev) =>
         prev.map((item) =>
@@ -232,7 +244,7 @@ const LogoTextPanel = () => {
         )
       );
     } else if (selectedType === "logo") {
-      const newSize = Math.max(0.1, Math.min(1.5, +(logoSize + delta).toFixed(2)));
+      const newSize = Math.max(0.01, Math.min(3.0, +(logoSize + delta).toFixed(2)));
       setLogoSize(newSize);
       setLogoList((prev) =>
         prev.map((item) =>
@@ -242,9 +254,30 @@ const LogoTextPanel = () => {
     }
   };
 
+  const handleRotationChange = (newRotation) => {
+    if (!selectedId) return;
+
+    if (selectedType === "text") {
+      setTextRotation(newRotation);
+      setTextList((prev) =>
+        prev.map((item) =>
+          item.id === selectedId ? { ...item, rotationAngle: newRotation } : item
+        )
+      );
+    } else if (selectedType === "logo") {
+      setLogoRotation(newRotation);
+      setLogoList((prev) =>
+        prev.map((item) =>
+          item.id === selectedId ? { ...item, rotationAngle: newRotation } : item
+        )
+      );
+    }
+  };
+
   const activeTextSelected = selectedType === "text" && selectedId;
   const activeItemSelected = !!selectedId;
   const currentSize = selectedType === "text" ? textSize : logoSize;
+  const currentRotation = selectedType === "text" ? textRotation : logoRotation;
 
   return (
     <div className="space-y-5 font-mono text-[10px]">
@@ -423,6 +456,26 @@ const LogoTextPanel = () => {
             >
               +
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Rotation controls */}
+      {activeItemSelected && (
+        <div className="space-y-1.5">
+          <div className="flex justify-between items-center text-zinc-400">
+            <span>ROTATION</span>
+            <span className="text-zinc-600 font-bold">{currentRotation || 0}°</span>
+          </div>
+          <div className="flex items-center gap-1.5 py-1">
+            <input
+              type="range"
+              min="0"
+              max="359"
+              value={currentRotation || 0}
+              onChange={(e) => handleRotationChange(+e.target.value)}
+              className="w-full h-1 bg-zinc-200 rounded-lg appearance-none cursor-pointer accent-zinc-800 focus:outline-none"
+            />
           </div>
         </div>
       )}

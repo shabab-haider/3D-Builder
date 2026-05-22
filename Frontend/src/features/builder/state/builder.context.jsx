@@ -1,4 +1,4 @@
-import React, { createContext, useState } from "react";
+import React, { createContext, useState, useEffect } from "react";
 
 export const builderContext = createContext();
 
@@ -9,19 +9,44 @@ const BuilderContextProvider = ({ children }) => {
   const [textPosition, setTextPosition] = useState([0, 0, 0.02]);
   const [textQuaternion, setTextQuaternion] = useState([0, 0, 0, 1]);
   const [textSize, setTextSize] = useState(0.35);
+  const [textRotation, setTextRotation] = useState(0);
 
   // Current logo properties
   const [logoUrl, setLogoUrl] = useState("");
   const [logoSize, setLogoSize] = useState(0.4);
   const [logoPosition, setLogoPosition] = useState([0, 0, 0.02]);
   const [logoQuaternion, setLogoQuaternion] = useState([0, 0, 0, 1]);
+  const [logoRotation, setLogoRotation] = useState(0);
 
   // Mesh the active overlay is placed on
   const [targetMesh, setTargetMesh] = useState("");
 
   // All uploaded / added items
-  const [textList, setTextList] = useState([]);
-  const [logoList, setLogoList] = useState([]);
+  const [textList, setTextList] = useState(() => {
+    try {
+      const stored = localStorage.getItem("builder_text_list");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [logoList, setLogoList] = useState(() => {
+    try {
+      const stored = localStorage.getItem("builder_logo_list");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem("builder_text_list", JSON.stringify(textList));
+  }, [textList]);
+
+  useEffect(() => {
+    localStorage.setItem("builder_logo_list", JSON.stringify(logoList));
+  }, [logoList]);
 
   // Selection & drag
   const [selectedId, setSelectedId] = useState(null);
@@ -47,6 +72,8 @@ const BuilderContextProvider = ({ children }) => {
         setTextQuaternion,
         textSize,
         setTextSize,
+        textRotation,
+        setTextRotation,
         logoUrl,
         setLogoUrl,
         logoSize,
@@ -55,6 +82,8 @@ const BuilderContextProvider = ({ children }) => {
         setLogoPosition,
         logoQuaternion,
         setLogoQuaternion,
+        logoRotation,
+        setLogoRotation,
         targetMesh,
         setTargetMesh,
         textList,

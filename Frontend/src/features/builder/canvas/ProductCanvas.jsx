@@ -22,8 +22,10 @@ const ProductCanvas = ({
     setSelectedType,
     setTextPosition,
     setTextQuaternion,
+    setTextRotation,
     setLogoPosition,
     setLogoQuaternion,
+    setLogoRotation,
     setTextList,
     setLogoList,
     setText,
@@ -56,6 +58,7 @@ const ProductCanvas = ({
           setTextPosition(item.position);
           setTextQuaternion(item.quaternion || [0, 0, 0, 1]);
           setTextSize(item.size);
+          setTextRotation(item.rotationAngle || 0);
           setTargetMesh(item.mesh);
         }
       } else {
@@ -65,6 +68,7 @@ const ProductCanvas = ({
           setLogoPosition(item.position);
           setLogoQuaternion(item.quaternion || [0, 0, 0, 1]);
           setLogoSize(item.size);
+          setLogoRotation(item.rotationAngle || 0);
           setTargetMesh(item.mesh);
         }
       }
@@ -78,15 +82,17 @@ const ProductCanvas = ({
       setTextColor,
       setTextPosition,
       setTextSize,
+      setTextRotation,
       setLogoUrl,
       setLogoPosition,
       setLogoSize,
+      setLogoRotation,
       setTargetMesh,
     ]
   );
 
   const handlePlacementUpdate = useCallback(
-    (id, type, { position, quaternion, meshName }) => {
+    (id, type, { position, quaternion, meshName, rotationAngle }) => {
       if (type === "text") {
         if (selectedId === id) {
           setTextPosition(position);
@@ -96,7 +102,13 @@ const ProductCanvas = ({
         setTextList((prev) =>
           prev.map((item) =>
             item.id === id
-              ? { ...item, position, quaternion, mesh: meshName || item.mesh }
+              ? {
+                  ...item,
+                  position,
+                  quaternion,
+                  mesh: meshName || item.mesh,
+                  rotationAngle: rotationAngle !== undefined ? rotationAngle : item.rotationAngle || 0,
+                }
               : item
           )
         );
@@ -109,7 +121,13 @@ const ProductCanvas = ({
         setLogoList((prev) =>
           prev.map((item) =>
             item.id === id
-              ? { ...item, position, quaternion, mesh: meshName || item.mesh }
+              ? {
+                  ...item,
+                  position,
+                  quaternion,
+                  mesh: meshName || item.mesh,
+                  rotationAngle: rotationAngle !== undefined ? rotationAngle : item.rotationAngle || 0,
+                }
               : item
           )
         );
@@ -132,6 +150,10 @@ const ProductCanvas = ({
       <Canvas
         gl={{ preserveDrawingBuffer: true }}
         camera={{ position: [0, 0, 2.2], fov: 45 }}
+        onPointerMissed={() => {
+          setSelectedId(null);
+          setSelectedType(null);
+        }}
       >
         <ambientLight intensity={0.7} />
         <directionalLight position={[5, 8, 5]} intensity={1.5} />
@@ -141,16 +163,12 @@ const ProductCanvas = ({
             url={model}
             partColors={partColors}
             selectedPart={selectedPart}
-            onMeshClick={(meshName, e) => {
+            onMeshClick={(meshName) => {
               if (selectedId) {
-                const placement = placementFromHit(e.object, e);
-                handlePlacementUpdate(selectedId, selectedType, {
-                  ...placement,
-                  meshName: e.object.name || e.object.uuid,
-                });
-              } else {
-                setSelectedPart(meshName);
+                setSelectedId(null);
+                setSelectedType(null);
               }
+              setSelectedPart(meshName);
             }}
             onPartsDetected={onPartsDetected}
             onSceneReady={handleSceneReady}

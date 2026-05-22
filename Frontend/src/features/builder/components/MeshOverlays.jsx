@@ -1,67 +1,77 @@
-import React, { useMemo, useEffect, useRef, useCallback } from "react";
+import React, { useMemo, useEffect, useRef, useState, useCallback } from "react";
 import { createPortal, useThree } from "@react-three/fiber";
 import { useTexture, Decal } from "@react-three/drei";
 import * as THREE from "three";
 import { createTextTexture } from "../utils/createTextTexture";
-import { findMeshByName, getPlacementFromScreen } from "../utils/meshHelpers";
+import { findMeshByName, placementFromHit } from "../utils/meshHelpers";
 
-function useDragOnMesh({ onPlacementUpdate, onDragStart, onDragEnd }) {
-  const { camera, gl, scene } = useThree();
-  const dragging = useRef(false);
+function TextDragPreview({ item, previewRef }) {
+  const texture = useMemo(() => createTextTexture(item.text, item.color), [item.text, item.color]);
 
-  const updatePlacement = useCallback(
-    (clientX, clientY) => {
-      if (!scene) return;
+  useEffect(() => {
+    return () => texture.dispose();
+  }, [texture]);
 
-      const placement = getPlacementFromScreen(
-        scene,
-        camera,
-        clientX,
-        clientY,
-        gl.domElement
-      );
+  const aspect = 4;
+  const scale = useMemo(() => [item.size * aspect, item.size, 1], [item.size, aspect]);
+  const initialQuat = useMemo(() => {
+    const baseQuat = new THREE.Quaternion(...item.initialLocalQuat);
+    const spinQuat = new THREE.Quaternion().setFromAxisAngle(
+      new THREE.Vector3(0, 0, 1),
+      THREE.MathUtils.degToRad(item.rotationAngle || 0)
+    );
+    return baseQuat.multiply(spinQuat);
+  }, [item.initialLocalQuat, item.rotationAngle]);
 
-      if (placement) {
-        onPlacementUpdate(placement);
-      }
-    },
-    [scene, camera, gl, onPlacementUpdate]
+  return (
+    <mesh ref={previewRef} position={item.initialLocalPos} quaternion={initialQuat} scale={scale}>
+      <planeGeometry />
+      <meshBasicMaterial
+        map={texture}
+        transparent
+        depthWrite={false}
+        depthTest={true}
+        toneMapped={false}
+        polygonOffset
+        polygonOffsetFactor={-20}
+        side={THREE.DoubleSide}
+      />
+    </mesh>
   );
+}
 
-  const handlePointerDown = useCallback(
-    (e) => {
-      e.stopPropagation();
-      dragging.current = true;
-      onDragStart?.();
-      if (e.target.setPointerCapture) {
-        e.target.setPointerCapture(e.pointerId);
-      }
-      updatePlacement(e.clientX, e.clientY);
-    },
-    [onDragStart, updatePlacement]
+function LogoDragPreview({ item, previewRef }) {
+  const texture = useTexture(item.url);
+
+  const aspect = texture.image
+    ? texture.image.width / texture.image.height
+    : 1;
+
+  const scale = useMemo(() => [item.size * aspect, item.size, 1], [item.size, aspect]);
+  const initialQuat = useMemo(() => {
+    const baseQuat = new THREE.Quaternion(...item.initialLocalQuat);
+    const spinQuat = new THREE.Quaternion().setFromAxisAngle(
+      new THREE.Vector3(0, 0, 1),
+      THREE.MathUtils.degToRad(item.rotationAngle || 0)
+    );
+    return baseQuat.multiply(spinQuat);
+  }, [item.initialLocalQuat, item.rotationAngle]);
+
+  return (
+    <mesh ref={previewRef} position={item.initialLocalPos} quaternion={initialQuat} scale={scale}>
+      <planeGeometry />
+      <meshBasicMaterial
+        map={texture}
+        transparent
+        depthWrite={false}
+        depthTest={true}
+        toneMapped={false}
+        polygonOffset
+        polygonOffsetFactor={-20}
+        side={THREE.DoubleSide}
+      />
+    </mesh>
   );
-
-  const handlePointerMove = useCallback(
-    (e) => {
-      if (!dragging.current || e.buttons !== 1) return;
-      e.stopPropagation();
-      updatePlacement(e.clientX, e.clientY);
-    },
-    [updatePlacement]
-  );
-
-  const handlePointerUp = useCallback(
-    (e) => {
-      dragging.current = false;
-      if (e.target.hasPointerCapture?.(e.pointerId)) {
-        e.target.releasePointerCapture(e.pointerId);
-      }
-      onDragEnd?.();
-    },
-    [onDragEnd]
-  );
-
-  return { handlePointerDown, handlePointerMove, handlePointerUp };
 }
 
 function TextOverlay({
@@ -69,9 +79,8 @@ function TextOverlay({
   scene,
   isSelected,
   onSelect,
-  onPlacementUpdate,
-  onDragStart,
-  onDragEnd,
+  startDrag,
+  isDraggingThis,
 }) {
   const parentMesh = useMemo(
     () => findMeshByName(scene, item.mesh),
@@ -91,25 +100,39 @@ function TextOverlay({
     return () => next.dispose();
   }, [item.text, item.color]);
 
-  const drag = useDragOnMesh({
-    onPlacementUpdate,
-    onDragStart,
-    onDragEnd,
-  });
-
   const aspect = 4;
   const rotation = useMemo(() => {
     if (!item.quaternion) return [0, 0, 0];
-    const q = new THREE.Quaternion(...item.quaternion);
-    const e = new THREE.Euler().setFromQuaternion(q, "XYZ");
+    const baseQuat = new THREE.Quaternion(...item.quaternion);
+    const spinQuat = new THREE.Quaternion().setFromAxisAngle(
+      new THREE.Vector3(0, 0, 1),
+      THREE.MathUtils.degToRad(item.rotationAngle || 0)
+    );
+    const finalQuat = baseQuat.multiply(spinQuat);
+    const e = new THREE.Euler().setFromQuaternion(finalQuat, "XYZ");
     return [e.x, e.y, e.z];
-  }, [item.quaternion]);
+  }, [item.quaternion, item.rotationAngle]);
 
   const scale = useMemo(() => {
-    // Drei Decal needs depth (Z scale) to project nicely on curved surfaces
-    return [item.size * aspect, item.size, 0.4];
-  }, [item.size, aspect]);
+    if (!parentMesh) return [item.size * aspect, item.size, 0.4];
 
+    // Get the absolute world scale of the parent mesh to normalize decal size
+    const tempScale = new THREE.Vector3();
+    parentMesh.getWorldScale(tempScale);
+
+    const sx = tempScale.x || 1;
+    const sy = tempScale.y || 1;
+    const sz = tempScale.z || 1;
+
+    // Divide target world size by parent's world scale to keep visual size constant
+    return [
+      (item.size * aspect) / sx,
+      item.size / sy,
+      0.4 / sz,
+    ];
+  }, [item.size, aspect, parentMesh]);
+
+  if (isDraggingThis) return null;
   if (!parentMesh) return null;
 
   return createPortal(
@@ -120,11 +143,10 @@ function TextOverlay({
       rotation={rotation}
       scale={scale}
       onPointerDown={(e) => {
+        e.stopPropagation();
         onSelect(item.id, "text");
-        drag.handlePointerDown(e);
+        startDrag(item, "text", e.clientX, e.clientY);
       }}
-      onPointerMove={drag.handlePointerMove}
-      onPointerUp={drag.handlePointerUp}
     >
       <meshBasicMaterial
         map={texture}
@@ -148,9 +170,8 @@ function LogoOverlay({
   scene,
   isSelected,
   onSelect,
-  onPlacementUpdate,
-  onDragStart,
-  onDragEnd,
+  startDrag,
+  isDraggingThis,
 }) {
   const parentMesh = useMemo(
     () => findMeshByName(scene, item.mesh),
@@ -159,27 +180,42 @@ function LogoOverlay({
 
   const texture = useTexture(item.url);
 
-  const drag = useDragOnMesh({
-    onPlacementUpdate,
-    onDragStart,
-    onDragEnd,
-  });
-
   const aspect = texture.image
     ? texture.image.width / texture.image.height
     : 1;
 
   const rotation = useMemo(() => {
     if (!item.quaternion) return [0, 0, 0];
-    const q = new THREE.Quaternion(...item.quaternion);
-    const e = new THREE.Euler().setFromQuaternion(q, "XYZ");
+    const baseQuat = new THREE.Quaternion(...item.quaternion);
+    const spinQuat = new THREE.Quaternion().setFromAxisAngle(
+      new THREE.Vector3(0, 0, 1),
+      THREE.MathUtils.degToRad(item.rotationAngle || 0)
+    );
+    const finalQuat = baseQuat.multiply(spinQuat);
+    const e = new THREE.Euler().setFromQuaternion(finalQuat, "XYZ");
     return [e.x, e.y, e.z];
-  }, [item.quaternion]);
+  }, [item.quaternion, item.rotationAngle]);
 
   const scale = useMemo(() => {
-    return [item.size * aspect, item.size, 0.4];
-  }, [item.size, aspect]);
+    if (!parentMesh) return [item.size * aspect, item.size, 0.4];
 
+    // Get the absolute world scale of the parent mesh to normalize decal size
+    const tempScale = new THREE.Vector3();
+    parentMesh.getWorldScale(tempScale);
+
+    const sx = tempScale.x || 1;
+    const sy = tempScale.y || 1;
+    const sz = tempScale.z || 1;
+
+    // Divide target world size by parent's world scale to keep visual size constant
+    return [
+      (item.size * aspect) / sx,
+      item.size / sy,
+      0.4 / sz,
+    ];
+  }, [item.size, aspect, parentMesh]);
+
+  if (isDraggingThis) return null;
   if (!parentMesh) return null;
 
   return createPortal(
@@ -190,11 +226,10 @@ function LogoOverlay({
       rotation={rotation}
       scale={scale}
       onPointerDown={(e) => {
+        e.stopPropagation();
         onSelect(item.id, "logo");
-        drag.handlePointerDown(e);
+        startDrag(item, "logo", e.clientX, e.clientY);
       }}
-      onPointerMove={drag.handlePointerMove}
-      onPointerUp={drag.handlePointerUp}
     >
       <meshBasicMaterial
         map={texture}
@@ -223,10 +258,175 @@ const MeshOverlays = ({
   onDragStart,
   onDragEnd,
 }) => {
+  const { camera, gl } = useThree();
+  const [draggingItem, setDraggingItem] = useState(null);
+  const previewRef = useRef();
+  const groupRef = useRef();
+  const lastHitRef = useRef(null);
+
+  // Keep latest callbacks in refs to avoid stale closures in window event listeners
+  const callbacksRef = useRef({ onPlacementUpdate, onDragStart, onDragEnd });
+  useEffect(() => {
+    callbacksRef.current = { onPlacementUpdate, onDragStart, onDragEnd };
+  }, [onPlacementUpdate, onDragStart, onDragEnd]);
+
+  const startDrag = useCallback(
+    (item, type, clientX, clientY) => {
+      if (!scene || !groupRef.current) return;
+
+      const rect = gl.domElement.getBoundingClientRect();
+      const pointer = new THREE.Vector2(
+        ((clientX - rect.left) / rect.width) * 2 - 1,
+        -((clientY - rect.top) / rect.height) * 2 + 1
+      );
+
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(pointer, camera);
+
+      const hits = raycaster.intersectObjects(scene.children, true);
+      const surfaceHit = hits.find(
+        (h) =>
+          h.object.isMesh &&
+          !h.object.userData?.isOverlay
+      );
+
+      if (!surfaceHit) return;
+
+      const worldNormal = surfaceHit.face.normal
+        .clone()
+        .transformDirection(surfaceHit.object.matrixWorld)
+        .normalize();
+
+      // Use a larger offset (0.015) during drag to avoid z-fighting/clipping
+      const worldPos = surfaceHit.point.clone().addScaledVector(worldNormal, 0.015);
+      const quat = new THREE.Quaternion().setFromUnitVectors(
+        new THREE.Vector3(0, 0, 1),
+        worldNormal
+      );
+
+      // Convert world position and normal/quaternion to group's local space
+      const tempMatrix = new THREE.Matrix4();
+      tempMatrix.copy(groupRef.current.matrixWorld).invert();
+      const localPos = worldPos.clone().applyMatrix4(tempMatrix);
+
+      const parentWorldQuat = new THREE.Quaternion();
+      groupRef.current.getWorldQuaternion(parentWorldQuat);
+      const localQuat = parentWorldQuat.invert().multiply(quat);
+
+      // Save initial hit
+      lastHitRef.current = surfaceHit;
+
+      setDraggingItem({
+        ...item,
+        type,
+        initialLocalPos: [localPos.x, localPos.y, localPos.z],
+        initialLocalQuat: [localQuat.x, localQuat.y, localQuat.z, localQuat.w]
+      });
+
+      callbacksRef.current.onDragStart?.();
+
+      const handlePointerMove = (moveEvent) => {
+        if (!previewRef.current || !groupRef.current) return;
+
+        const rect = gl.domElement.getBoundingClientRect();
+        const pointer = new THREE.Vector2(
+          ((moveEvent.clientX - rect.left) / rect.width) * 2 - 1,
+          -((moveEvent.clientY - rect.top) / rect.height) * 2 + 1
+        );
+
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(pointer, camera);
+
+        // Raycast against the scene meshes
+        const hits = raycaster.intersectObjects(scene.children, true);
+        
+        // Find the first mesh hit that is not the preview mesh and not an overlay
+        const surfaceHit = hits.find(
+          (h) =>
+            h.object.isMesh &&
+            h.object !== previewRef.current &&
+            !h.object.userData?.isOverlay
+        );
+
+        if (surfaceHit) {
+          lastHitRef.current = surfaceHit;
+
+          // Compute world normal and world position
+          const worldNormal = surfaceHit.face.normal
+            .clone()
+            .transformDirection(surfaceHit.object.matrixWorld)
+            .normalize();
+
+          // Use a larger offset (0.015) during drag to avoid z-fighting/clipping
+          const worldPos = surfaceHit.point.clone().addScaledVector(worldNormal, 0.015);
+
+          // Convert to local space of the group
+          const tempMatrix = new THREE.Matrix4();
+          tempMatrix.copy(groupRef.current.matrixWorld).invert();
+          const localPos = worldPos.clone().applyMatrix4(tempMatrix);
+
+          previewRef.current.position.copy(localPos);
+
+          const quat = new THREE.Quaternion().setFromUnitVectors(
+            new THREE.Vector3(0, 0, 1),
+            worldNormal
+          );
+          
+          const parentWorldQuat = new THREE.Quaternion();
+          groupRef.current.getWorldQuaternion(parentWorldQuat);
+          const localQuat = parentWorldQuat.invert().multiply(quat);
+
+          // Apply manual rotation spin during move
+          const spinQuat = new THREE.Quaternion().setFromAxisAngle(
+            new THREE.Vector3(0, 0, 1),
+            THREE.MathUtils.degToRad(item.rotationAngle || 0)
+          );
+          const finalLocalQuat = localQuat.multiply(spinQuat);
+
+          previewRef.current.quaternion.copy(finalLocalQuat);
+          previewRef.current.visible = true;
+        } else {
+          // If no hit, we can keep the preview hidden
+          previewRef.current.visible = false;
+        }
+      };
+
+      const handlePointerUp = () => {
+        window.removeEventListener("pointermove", handlePointerMove);
+        window.removeEventListener("pointerup", handlePointerUp);
+
+        // Save placement if we have a valid hit
+        if (lastHitRef.current) {
+          const hitMesh = lastHitRef.current.object;
+          const placement = placementFromHit(hitMesh, lastHitRef.current);
+          
+          // Carry over the current rotationAngle when updating placement
+          callbacksRef.current.onPlacementUpdate(
+            item.id,
+            type,
+            {
+              ...placement,
+              meshName: hitMesh.name || hitMesh.uuid,
+              rotationAngle: item.rotationAngle || 0,
+            }
+          );
+        }
+
+        lastHitRef.current = null;
+        setDraggingItem(null);
+        callbacksRef.current.onDragEnd?.();
+      };
+
+      window.addEventListener("pointermove", handlePointerMove);
+      window.addEventListener("pointerup", handlePointerUp);
+    },
+    [scene, camera, gl]
+  );
+
   if (!scene) return null;
 
   return (
-    <>
+    <group ref={groupRef}>
       {textList.map((item) => (
         <TextOverlay
           key={item.id}
@@ -234,11 +434,8 @@ const MeshOverlays = ({
           scene={scene}
           isSelected={selectedId === item.id}
           onSelect={onSelect}
-          onPlacementUpdate={(placement) =>
-            onPlacementUpdate(item.id, "text", placement)
-          }
-          onDragStart={onDragStart}
-          onDragEnd={onDragEnd}
+          startDrag={startDrag}
+          isDraggingThis={draggingItem && draggingItem.id === item.id}
         />
       ))}
       {logoList.map((item) => (
@@ -248,15 +445,19 @@ const MeshOverlays = ({
           scene={scene}
           isSelected={selectedId === item.id}
           onSelect={onSelect}
-          onPlacementUpdate={(placement) =>
-            onPlacementUpdate(item.id, "logo", placement)
-          }
-          onDragStart={onDragStart}
-          onDragEnd={onDragEnd}
+          startDrag={startDrag}
+          isDraggingThis={draggingItem && draggingItem.id === item.id}
         />
       ))}
-    </>
+      {draggingItem && draggingItem.type === "text" && (
+        <TextDragPreview item={draggingItem} previewRef={previewRef} />
+      )}
+      {draggingItem && draggingItem.type === "logo" && (
+        <LogoDragPreview item={draggingItem} previewRef={previewRef} />
+      )}
+    </group>
   );
 };
 
 export default MeshOverlays;
+
