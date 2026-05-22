@@ -7,6 +7,7 @@ const ModelRenderer = ({
   selectedPart,
   onMeshClick,
   onPartsDetected,
+  onSceneReady,
 }) => {
   const { scene } = useGLTF(url);
 
@@ -18,6 +19,9 @@ const ModelRenderer = ({
 
     scene.traverse((child) => {
       if (child.isMesh) {
+        // Skip decal/overlay meshes
+        if (child.userData?.isOverlay) return;
+
         const partName = child.name || child.uuid;
         parts.push(partName);
         if (child.material && child.material.color) {
@@ -31,14 +35,20 @@ const ModelRenderer = ({
     if (onPartsDetected) {
       onPartsDetected(parts, initialColors);
     }
+    if (onSceneReady) {
+      onSceneReady(scene);
+    }
   }, [scene, url]); // Re-run if model url changes
 
-  // Apply colors and highlights dynamically
+  // Apply colors dynamically
   useEffect(() => {
     if (!scene) return;
 
     scene.traverse((child) => {
       if (child.isMesh) {
+        // Skip decal/overlay meshes
+        if (child.userData?.isOverlay) return;
+
         const partName = child.name || child.uuid;
 
         if (child.material) {
@@ -63,7 +73,9 @@ const ModelRenderer = ({
       onClick={(e) => {
         e.stopPropagation();
         if (onMeshClick) {
-          onMeshClick(e.object.name || e.object.uuid);
+          // Skip overlay clicks
+          if (e.object.userData?.isOverlay) return;
+          onMeshClick(e.object.name || e.object.uuid, e);
         }
       }}
     />

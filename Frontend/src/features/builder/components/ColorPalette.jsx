@@ -19,16 +19,30 @@ const PRESET_COLORS = [
   { name: "Vibrant Pink", value: "#EC4899" },
 ];
 
-const ColorPalette = ({ selectedPart, partColors, onColorSelect }) => {
-  const currentColor = selectedPart ? (partColors[selectedPart] || "#FFFFFF") : null;
+const ColorPalette = ({
+  selectedPart,
+  partColors,
+  onColorSelect,
+  color,
+  onColorChange,
+  label = "Material Properties",
+}) => {
+  const isTextMode = color !== undefined && onColorChange;
+  const currentColor = isTextMode
+    ? (color || "#FFFFFF")
+    : selectedPart
+      ? (partColors[selectedPart] || "#FFFFFF")
+      : "#FFFFFF";
+  const handleColor = isTextMode ? onColorChange : onColorSelect;
+  const displayColor = currentColor.toUpperCase();
 
   return (
     <div className="flex flex-col gap-3 font-mono text-[10px]">
       <span className="text-[9px] font-bold tracking-widest text-zinc-400 uppercase">
-        Material Properties
+        {label}
       </span>
 
-      {!selectedPart ? (
+      {!isTextMode && !selectedPart ? (
         <div className="p-4 text-center text-zinc-400 border border-dashed border-zinc-200 bg-zinc-50/50">
           [WARN] SELECT_PART_TO_INSPECT
         </div>
@@ -42,11 +56,11 @@ const ColorPalette = ({ selectedPart, partColors, onColorSelect }) => {
               <input
                 type="color"
                 value={currentColor}
-                onChange={(e) => onColorSelect(e.target.value.toUpperCase())}
+                onChange={(e) => handleColor(e.target.value.toUpperCase())}
                 className="w-6 h-6 border border-zinc-300 rounded-xs cursor-pointer p-0 bg-transparent"
               />
               <div className="flex-1 flex justify-between items-center ml-1">
-                <span className="font-bold text-zinc-700">{currentColor.toUpperCase()}</span>
+                <span className="font-bold text-zinc-700">{displayColor}</span>
                 <span className="text-[8px] text-zinc-400 uppercase">HEX_COLOR_PICKER</span>
               </div>
             </div>
@@ -60,12 +74,13 @@ const ColorPalette = ({ selectedPart, partColors, onColorSelect }) => {
             </div>
             
             <div className="grid grid-cols-6 gap-1.5">
-              {PRESET_COLORS.map((color) => {
-                const isActive = currentColor?.toUpperCase() === color.value.toUpperCase();
+              {PRESET_COLORS.map((preset) => {
+                const isActive = currentColor?.toUpperCase() === preset.value.toUpperCase();
                 return (
                   <button
-                    key={color.value}
-                    onClick={() => onColorSelect(color.value)}
+                    key={preset.value}
+                    type="button"
+                    onClick={() => handleColor(preset.value)}
                     className={`relative aspect-square rounded-xs border cursor-pointer transition-all duration-100 flex items-center justify-center active:scale-90
                       ${
                         isActive
@@ -73,14 +88,14 @@ const ColorPalette = ({ selectedPart, partColors, onColorSelect }) => {
                           : "border-zinc-200 hover:border-zinc-400"
                       }
                     `}
-                    style={{ backgroundColor: color.value }}
-                    title={`${color.name}: ${color.value}`}
+                    style={{ backgroundColor: preset.value }}
+                    title={`${preset.name}: ${preset.value}`}
                   >
                     {/* Contrast Indicator Dot */}
                     {isActive && (
                       <span
                         className={`w-1.5 h-1.5 rounded-full shadow-xs ${
-                          color.value === "#FFFFFF" ? "bg-zinc-800" : "bg-white"
+                          preset.value === "#FFFFFF" ? "bg-zinc-800" : "bg-white"
                         }`}
                       />
                     )}
