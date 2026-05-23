@@ -2,10 +2,11 @@ import React, { useContext, useState } from "react";
 import { dashboardDataContext } from "../state/dashboard.context";
 import { useNavigate } from "react-router-dom";
 import { uploadToCloudinary } from "../../builder/utils/cloudinaryUpload";
+import SavedDesigns from "./SavedDesigns";
 
 const Products = () => {
   const navigate = useNavigate();
-  const { products, setProducts, setModel, setPartColors } = useContext(dashboardDataContext);
+  const { products, setProducts, setModel, setPartColors, setTextList, setLogoList } = useContext(dashboardDataContext);
   const [uploading, setUploading] = useState(false);
 
   const handleGlbUpload = async (e) => {
@@ -18,6 +19,8 @@ const Products = () => {
       setProducts("CUSTOM_DESIGN");
       setModel(url);
       setPartColors({});
+      setTextList([]);
+      setLogoList([]);
       navigate("/builder");
     } catch (err) {
       console.error("GLB upload failed:", err);
@@ -116,6 +119,11 @@ const Products = () => {
       {/* Asset Grid Panel */}
       <div className="flex-1 px-10 py-8 overflow-y-auto flex flex-col custom-scrollbar">
         {(() => {
+          // If Saved Designs tab is active, render SavedDesigns component
+          if (products === "SAVED_DESIGNS") {
+            return <SavedDesigns />;
+          }
+
           // 1. Current active category data
           const activeCategory = ProductData.find(
             (item) => item.folderName.toUpperCase() === products?.toUpperCase(),
@@ -159,6 +167,8 @@ const Products = () => {
                       const glbPath = `/PRODUCTS/${products}/${fileName}.glb`;
                       setModel(glbPath);
                       setPartColors({}); // Reset custom colors for the new model
+                      setTextList([]); // Reset custom texts
+                      setLogoList([]); // Reset custom logos
                       navigate("/builder");
                     }}
                     key={index}

@@ -212,13 +212,15 @@ const BuilderContent = () => {
             </span>
 
             <button
-              onClick={() => saveDesign({
-                productCategory: products,
-                modelPath: model,
-                partColors: partColors,
-                textList: textList,
-                logoList: logoList,
-              })}
+              onClick={() => {
+                saveDesign({
+                  productCategory: products,
+                  modelPath: model,
+                  partColors: partColors,
+                  textList: textList,
+                  logoList: logoList,
+                });
+              }}
               disabled={parts.length === 0 || isSaving}
               className="w-full flex items-center justify-center gap-1.5 py-2 border border-zinc-200 hover:border-zinc-300 bg-white text-[10px] font-bold text-zinc-600 hover:text-zinc-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-xs rounded-xs font-mono"
             >

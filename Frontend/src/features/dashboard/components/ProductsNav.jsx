@@ -1,5 +1,6 @@
-import React, { useContext } from "react";
+import React, { useContext, useEffect } from "react";
 import { dashboardDataContext } from "../state/dashboard.context";
+import { useDashboard } from "../hooks/useDashboard";
 
 const categories = [
   { id: "AMERICAN FOOTBALL", label: "AMERICAN FOOTBALL", items: 2 },
@@ -14,6 +15,11 @@ const categories = [
 
 const ProductsNav = () => {
   const { products, setProducts } = useContext(dashboardDataContext);
+  const { designs, fetchDesigns } = useDashboard();
+
+  useEffect(() => {
+    fetchDesigns();
+  }, []);
 
   return (
     <div className="flex flex-col h-full w-64 bg-zinc-50 border-r border-zinc-200 shrink-0 font-mono select-none">
@@ -73,6 +79,48 @@ const ProductsNav = () => {
             </button>
           );
         })}
+
+        {/* Divider */}
+        <div className="border-t border-zinc-200 my-2 pt-2"></div>
+
+        {/* Saved Designs Tab */}
+        {(() => {
+          const isSelected = products === "SAVED_DESIGNS";
+          return (
+            <button
+              onClick={() => setProducts("SAVED_DESIGNS")}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded text-left transition-all duration-150 border text-[11px] font-medium cursor-pointer group
+                ${
+                  isSelected
+                    ? "bg-zinc-200 border-zinc-300 text-zinc-950 font-bold"
+                    : "bg-transparent border-transparent text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800"
+                }
+              `}
+            >
+              <div className="flex items-center gap-2 truncate">
+                {/* Bookmark/Floppy icon */}
+                <svg
+                  className={`w-3.5 h-3.5 transition-colors ${isSelected ? "text-zinc-700" : "text-zinc-400 group-hover:text-zinc-600"}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                </svg>
+                <span className="truncate tracking-tight uppercase">Saved Designs</span>
+              </div>
+
+              {/* Item count badge */}
+              <span
+                className={`text-[9px] font-mono px-1 rounded transition-colors ${
+                  isSelected ? "bg-zinc-300 text-zinc-800" : "bg-zinc-200 text-zinc-400 group-hover:bg-zinc-200 group-hover:text-zinc-600"
+                }`}
+              >
+                {designs ? designs.length : 0}
+              </span>
+            </button>
+          );
+        })()}
       </div>
 
       {/* System Status Footer */}
@@ -85,3 +133,4 @@ const ProductsNav = () => {
 };
 
 export default ProductsNav;
+

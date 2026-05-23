@@ -1,8 +1,11 @@
-import React, { createContext, useState } from "react";
+import React, { createContext, useState, useContext } from "react";
+import { dashboardDataContext } from "../../dashboard/state/dashboard.context";
 
 export const builderContext = createContext();
 
 const BuilderContextProvider = ({ children }) => {
+  const { textList: initialTextList, logoList: initialLogoList } = useContext(dashboardDataContext);
+
   // Current text properties (active item or last added)
   const [text, setText] = useState("");
   const [textColor, setTextColor] = useState("#111827");
@@ -22,8 +25,8 @@ const BuilderContextProvider = ({ children }) => {
   const [targetMesh, setTargetMesh] = useState("");
 
   // All uploaded / added items
-  const [textList, setTextList] = useState([]);
-  const [logoList, setLogoList] = useState([]);
+  const [textList, setTextList] = useState(initialTextList || []);
+  const [logoList, setLogoList] = useState(initialLogoList || []);
 
   // Selection & drag
   const [selectedId, setSelectedId] = useState(null);
